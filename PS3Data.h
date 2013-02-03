@@ -274,10 +274,10 @@ enum TOCnames {
     eEID,
     cISD,
     cCSD,
-    trvk_prg0,
-    trvk_prg1,
-    trvk_pkg0,
-    trvk_pkg1,
+    tvrk_prg0,
+    tvrk_prg1,
+    tvrk_pkg0,
+    tvrk_pkg1,
     ros0,
     ros1,
     cvtrm,
@@ -298,10 +298,10 @@ static struct Sections SectionTOC[] = {
     { "eEID"            , 0x02F000, 0x010000, 0, 0, NULL }, // per console
     { "cISD"            , 0x03F000, 0x0800  , 0, 0, NULL }, // per console
     { "cCSD"            , 0x03F800, 0x0800  , 0, 0, NULL }, // per console
-    { "trvk_prg0"       , 0x040000, 0x020000, 0, 0, NULL }, // per firmware
-    { "trvk_prg1"       , 0x060000, 0x020000, 0, 0, NULL }, // per firmware
-    { "trvk_pkg0"       , 0x080000, 0x020000, 0, 0, NULL }, // per firmware
-    { "trvk_pkg1"       , 0x0A0000, 0x020000, 0, 0, NULL }, // per firmware
+    { "tvrk_prg0"       , 0x040000, 0x020000, 0, 0, NULL }, // per firmware
+    { "tvrk_prg1"       , 0x060000, 0x020000, 0, 0, NULL }, // per firmware
+    { "tvrk_pkg0"       , 0x080000, 0x020000, 0, 0, NULL }, // per firmware
+    { "tvrk_pkg1"       , 0x0A0000, 0x020000, 0, 0, NULL }, // per firmware
     { "ros0"            , 0x0C0000, 0x700000, 0, 0, NULL }, // per firmware
     { "ros1"            , 0x7C0000, 0x700000, 0, 0, NULL }, // per firmware
     { "cvtrm"           , 0xEC0000, 0x040000, 0, 0, NULL }, // per console

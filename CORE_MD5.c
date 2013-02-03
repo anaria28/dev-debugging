@@ -75,8 +75,6 @@ struct Reporting {
 
 void MD5SumFileSection( FILE *FileToRead, uint32_t Position, uint32_t Size, uint8_t *Sum) {
     char *Buffer = malloc(Size+1);
-    //uint8_t result[MD5_DIGEST_LENGTH];
-    
     fseek (FileToRead, Position, SEEK_SET);
     fread (Buffer, Size, 1, FileToRead);
     MD5 (Buffer, Size, Sum);
@@ -86,7 +84,7 @@ void printMD5 (uint8_t MD5result[MD5_DIGEST_LENGTH]) {
     uint8_t Cursor;
     for(Cursor = 0; Cursor < MD5_DIGEST_LENGTH; Cursor++)
                 printf("%02x",MD5result[Cursor]);
-};
+}
 
 void GetSection(FILE *FileToRead, uint32_t Position, uint8_t Size, uint8_t DisplayType, char *section_data) {
     // Reads area from file and put it in section_data pointer
@@ -116,43 +114,27 @@ void GetSection(FILE *FileToRead, uint32_t Position, uint8_t Size, uint8_t Displ
 
 uint8_t CheckPerFW (FILE *FileToRead, uint32_t *PercentCheck){
     uint16_t Cursor=0;
-    //uint8_t Cursor2=0;
     uint32_t SizedCheck=0;
     
     uint8_t Status =EXIT_SUCCESS;
     
     uint8_t MD5result[MD5_DIGEST_LENGTH];
-    
-    char    DisplaySection[DATA_BUFFER_SIZE]={0};
 
     uint8_t NbFileTOCros0;
-    uint8_t NbFileTOCros1;
-    
-    uint32_t tvrk_prg0Size;
-    uint32_t tvrk_prg1Size;
-    uint32_t tvrk_pkg0Size;
-    uint32_t tvrk_pkg1Size;
-    
+
     char  ROS0SDKVersion[]="3.55";
-    char  ROS1SDKVersion[]="3.41";
 
     char *Buffer = malloc(DATA_BUFFER_SIZE);
 
-    struct Sections SectionRos[NB_MAX_FILE_ROS*2+1] = {
+    struct Sections SectionRos[NB_MAX_FILE_ROS+1] = {
         {NULL, 0, 0, 0, 0, NULL}
     };
     
     printf("******************************\n");
-    printf("*     Per Firmware Data      *\n");
+    printf("*     CORES OS MD5           *\n");
     printf("******************************\n");
-    
-    /////////////////////////////////////////////////////////////////////////
-    //  only for NAND -> http://www.ps3devwiki.com/wiki/Flash:ROS#Header   //
-    /////////////////////////////////////////////////////////////////////////
-    
-    //http://www.ps3devwiki.com/wiki/Flash:ROS#ros_Entries
-    //at ros0 offset + 0x14: nb of files, (nb of files) * 0x30 = size of TOC
-    GetSection(FileToRead, SectionTOC[ros0].Offset+0x14, 0x04, TYPE_HEX, Buffer);
+
+    GetSection(FileToRead, 0x4, 0x04, TYPE_HEX, Buffer);
     NbFileTOCros0 = strtol(Buffer,NULL,16);
     
     SizedCheck += 0x04;
@@ -162,13 +144,13 @@ uint8_t CheckPerFW (FILE *FileToRead, uint32_t *PercentCheck){
         for (Cursor=0;Cursor<NbFileTOCros0;Cursor++) {
             //www.ps3devwiki.com/wiki/Flash:ROS#Entry_Table
             
-            GetSection(FileToRead, SectionTOC[ros0].Offset+0x20+Cursor*0x30, 0x08, TYPE_HEX, Buffer);
-            SectionRos[Cursor].Offset = strtol(Buffer,NULL,16) + SectionTOC[ros0].Offset + 0x10;
+            GetSection(FileToRead, 0x10+Cursor*0x30, 0x08, TYPE_HEX, Buffer);
+            SectionRos[Cursor].Offset = strtol(Buffer,NULL,16); // + 0x10;
             
-            GetSection(FileToRead, SectionTOC[ros0].Offset+0x28+Cursor*0x30, 0x08, TYPE_HEX, Buffer);
+            GetSection(FileToRead, 0x18+Cursor*0x30, 0x08, TYPE_HEX, Buffer);
             SectionRos[Cursor].Size = strtol(Buffer,NULL,16);
             
-            GetSection(FileToRead, SectionTOC[ros0].Offset+0x30+Cursor*0x30, 0x20, TYPE_ASCII, Buffer);
+            GetSection(FileToRead, 0x20+Cursor*0x30, 0x20, TYPE_ASCII, Buffer);
             SectionRos[Cursor].name = strdup(Buffer);
 
             SizedCheck += SectionRos[Cursor].Size;
@@ -179,112 +161,30 @@ uint8_t CheckPerFW (FILE *FileToRead, uint32_t *PercentCheck){
         printf ("Found %d files in the TOC of ros0, max is %d !\n" , NbFileTOCros0 , NB_MAX_FILE_ROS);
         return EXIT_FAILURE;
     }
-    GetSection(FileToRead, SectionTOC[ros1].Offset+0x14, 0x04, TYPE_HEX, Buffer);
-    NbFileTOCros1 = strtol(Buffer,NULL,16);
-    
-    SizedCheck += 0x04;
-    
-    if (NbFileTOCros1<NB_MAX_FILE_ROS) {
-        //printf ("Found %d files in the TOC of ros1, max is %d !\n" , NbFileTOCros1 , NB_MAX_FILE_ROS);
-        for (Cursor=0;Cursor<NbFileTOCros1;Cursor++) {
-            //http://www.ps3devwiki.com/wiki/Flash:ROS#Entry_Table
-            
-            GetSection(FileToRead, SectionTOC[ros1].Offset+0x20+Cursor*0x30, 0x08, TYPE_HEX, Buffer);
-            SectionRos[Cursor+NbFileTOCros1].Offset = strtol(Buffer,NULL,16) + SectionTOC[ros1].Offset + 0x10;
-            
-            GetSection(FileToRead, SectionTOC[ros1].Offset+0x28+Cursor*0x30, 0x08, TYPE_HEX, Buffer);
-            SectionRos[Cursor+NbFileTOCros1].Size = strtol(Buffer,NULL,16);
-            
-            GetSection(FileToRead, SectionTOC[ros1].Offset+0x30+Cursor*0x30, 0x20, TYPE_ASCII, Buffer);
-            SectionRos[Cursor+NbFileTOCros1].name=strdup(Buffer);
-            
-            SizedCheck += SectionRos[Cursor+NbFileTOCros1].Size;
-        }
-    }
-    else {
-        printf ("Found %d files in the TOC of ros1, max is %d !\n" , NbFileTOCros1 , NB_MAX_FILE_ROS);
-        return EXIT_FAILURE;
-    }
-    printf ("{\"tvrk_prg0\" , \"");
-    MD5SumFileSection (FileToRead, SectionTOC[tvrk_prg0].Offset+0x10, 0x0FE0, MD5result);
-    printMD5(MD5result);
-    printf ("\"},\n");
-    
-    printf ("{\"tvrk_prg1\" , \"");
-    MD5SumFileSection (FileToRead, SectionTOC[tvrk_prg1].Offset+0x10, 0x0FE0, MD5result);
-    printMD5(MD5result);
-    printf ("\"},\n");
-    
-    printf ("{\"tvrk_pkg0\" , \"");
-    MD5SumFileSection (FileToRead, SectionTOC[tvrk_pkg0].Offset+0x10, 0x0FE0, MD5result);
-    printMD5(MD5result);
-    printf ("\"},\n");
-    
-    printf ("{\"tvrk_pkg1\" , \"");
-    MD5SumFileSection (FileToRead, SectionTOC[tvrk_pkg1].Offset+0x10, 0x0FE0, MD5result);
-    printMD5(MD5result);
-    printf ("\"},\n");
 
     Cursor = 0;
-    
     while (SectionRos[Cursor].name!=NULL) {
         if (strcmp(SectionRos[Cursor].name, "sdk_version")==0) {
             GetSection(FileToRead, SectionRos[Cursor].Offset, SectionRos[Cursor].Size, TYPE_ASCII, Buffer);
-            if (Cursor<=NbFileTOCros0) {
-                ROS0SDKVersion[0]=Buffer[0];
-                ROS0SDKVersion[2]=Buffer[1];
-                ROS0SDKVersion[3]=Buffer[2];
-                }
-            else {
-                ROS1SDKVersion[0]=Buffer[0];
-                ROS1SDKVersion[2]=Buffer[1];
-                ROS1SDKVersion[3]=Buffer[2];
-            }
-            //printf (" SDK VERSION at '0x%08X' is : '%7s'\n",SectionRos[Cursor].Offset, Buffer);
-            printf ("%s\n",DisplaySection);
+            ROS0SDKVersion[0]=Buffer[0];
+            ROS0SDKVersion[2]=Buffer[1];
+            ROS0SDKVersion[3]=Buffer[2];
         }
         Cursor++;
     }
-    Cursor = 0;
     
+    Cursor = 0;
     while (SectionRos[Cursor].name!=NULL) {
+    
+            printf("Debug: at '0x%08X' size '0x%08X'  ",SectionRos[Cursor].Offset,SectionRos[Cursor].Size);
             printf ("{\"%s\" , \"",SectionRos[Cursor].name);
+            printf("%c.%c%c\" , \"", ROS0SDKVersion[0],ROS0SDKVersion[2],ROS0SDKVersion[3]);
             
-            MD5SumFileSection ( FileToRead, SectionRos[Cursor+NbFileTOCros1].Offset, SectionRos[Cursor+NbFileTOCros1].Size, MD5result);
-
-            // printf ("\"},\n");
-            if (Cursor<=NbFileTOCros0) {
-                printf("%c.%c%c\" , \"", ROS0SDKVersion[0],ROS0SDKVersion[2],ROS0SDKVersion[3]);
-                }
-            else {
-                printf("%c.%c%c\" , \"", ROS1SDKVersion[0],ROS1SDKVersion[2],ROS1SDKVersion[3]);
-            }
-            //printf (" SDK VERSION at '0x%08X' is : '%7s'\n",SectionRos[Cursor].Offset, Buffer);
+            MD5SumFileSection ( FileToRead, SectionRos[Cursor].Offset, SectionRos[Cursor].Size, MD5result);
             printMD5(MD5result);
             printf ("\"},\n");
-
         Cursor++;
     }
-    // The MD5 is done on 0x0FE0, but some blanks where checked before in CheckFilledData()
-    // To avoid having a false report on the size checked here we do count on the size of data only
-    
-    GetSection(FileToRead, SectionTOC[tvrk_prg0].Offset+0x0E, 0x02, TYPE_HEX, Buffer);
-    tvrk_prg0Size = strtol(Buffer,NULL,16); //.Yes it can be done in one line
-    SizedCheck += tvrk_prg0Size;            // but this way is selfexplaining
-    
-    GetSection(FileToRead, SectionTOC[tvrk_prg1].Offset+0x0E, 0x02, TYPE_HEX, Buffer);
-    tvrk_prg1Size = strtol(Buffer,NULL,16);
-    SizedCheck += tvrk_prg1Size; 
-     
-    GetSection(FileToRead, SectionTOC[tvrk_pkg0].Offset+0x0E, 0x02, TYPE_HEX, Buffer);
-    tvrk_pkg0Size = strtol(Buffer,NULL,16);
-    SizedCheck += tvrk_pkg0Size; 
-    
-    GetSection(FileToRead, SectionTOC[tvrk_pkg1].Offset+0x0E, 0x02, TYPE_HEX, Buffer);
-    tvrk_pkg1Size = strtol(Buffer,NULL,16);
-    SizedCheck += tvrk_pkg1Size; 
-    
-    *PercentCheck = SizedCheck;
 
     free(Buffer);
     return Status;
@@ -294,7 +194,7 @@ int main(int argc, char *argv[]) {
     uint8_t  Status = EXIT_SUCCESS;
     uint8_t  GlobalStatus = EXIT_SUCCESS;
     FILE     *BinaryFile;
-    uint32_t FileLength;
+    //uint32_t FileLength;
     char     *Buffer = malloc(DATA_BUFFER_SIZE);
     uint8_t  Cursor;
     int      OptionType=0;
@@ -311,10 +211,10 @@ int main(int argc, char *argv[]) {
     printf("*       dev-debugging        *\n");
     printf("******************************\n");
 
-    printf("\nOpen source project aimed to help to for me for my PS3 NOR dumps\n");
+    printf("\nOpen source project aimed to help me for my PS3 NOR dumps\n");
 
     if ((argc < 2)||(strcmp(argv[1], "--help")==0)) {
-        printf("Usage: %s NorFile.bin (Options)\n", argv[0]);
+        printf("Usage: %s CORES_OS_DECRYPTED (Options)\n", argv[0]);
         printf("Options:\n");
         printf("  --help\t\t: Display this help.\n");
         //printf("  -P \t\t\t: Give percentage of bytes\n");
@@ -357,11 +257,11 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    fseek(BinaryFile, 0, SEEK_END);
-    if ((FileLength=ftell(BinaryFile))!=NOR_FILE_SIZE) {
-        printf("File size not correct for NOR, %d Bytes instead of %d\n", FileLength, NOR_FILE_SIZE);
-        return EXIT_FAILURE;
-    }
+    // fseek(BinaryFile, 0, SEEK_END);
+    // if ((FileLength=ftell(BinaryFile))!=NOR_FILE_SIZE) {
+        // printf("File size not correct for NOR, %d Bytes instead of %d\n", FileLength, NOR_FILE_SIZE);
+        // return EXIT_FAILURE;
+    // }
 
     if (((OptionType)&(1<<1))==OPTION_MD5) {
         printf("******************************\n");
@@ -377,9 +277,9 @@ int main(int argc, char *argv[]) {
         if((Status = CheckPerFW(BinaryFile, SizedCheck))) {
             printf("T'a merde mon gars...\n");
         }
-        else {
-            printf("C'est bon!\n");
-        }
+        // else {
+            // printf("C'est bon!\n");
+        // }
     }
     
     free(Buffer);
