@@ -128,10 +128,10 @@ uint8_t CheckPerFW (FILE *FileToRead, uint32_t *PercentCheck){
     uint8_t NbFileTOCros0;
     uint8_t NbFileTOCros1;
     
-    uint32_t tvrk_prg0Size;
-    uint32_t tvrk_prg1Size;
-    uint32_t tvrk_pkg0Size;
-    uint32_t tvrk_pkg1Size;
+    uint32_t trvk_prg0Size;
+    uint32_t trvk_prg1Size;
+    uint32_t trvk_pkg0Size;
+    uint32_t trvk_pkg1Size;
     
     char  ROS0SDKVersion[]="3.55";
     char  ROS1SDKVersion[]="3.41";
@@ -190,38 +190,38 @@ uint8_t CheckPerFW (FILE *FileToRead, uint32_t *PercentCheck){
             //http://www.ps3devwiki.com/wiki/Flash:ROS#Entry_Table
             
             GetSection(FileToRead, SectionTOC[ros1].Offset+0x20+Cursor*0x30, 0x08, TYPE_HEX, Buffer);
-            SectionRos[Cursor+NbFileTOCros1].Offset = strtol(Buffer,NULL,16) + SectionTOC[ros1].Offset + 0x10;
+            SectionRos[Cursor+NbFileTOCros0].Offset = strtol(Buffer,NULL,16) + SectionTOC[ros1].Offset + 0x10;
             
             GetSection(FileToRead, SectionTOC[ros1].Offset+0x28+Cursor*0x30, 0x08, TYPE_HEX, Buffer);
-            SectionRos[Cursor+NbFileTOCros1].Size = strtol(Buffer,NULL,16);
+            SectionRos[Cursor+NbFileTOCros0].Size = strtol(Buffer,NULL,16);
             
             GetSection(FileToRead, SectionTOC[ros1].Offset+0x30+Cursor*0x30, 0x20, TYPE_ASCII, Buffer);
-            SectionRos[Cursor+NbFileTOCros1].name=strdup(Buffer);
+            SectionRos[Cursor+NbFileTOCros0].name=strdup(Buffer);
             
-            SizedCheck += SectionRos[Cursor+NbFileTOCros1].Size;
+            SizedCheck += SectionRos[Cursor+NbFileTOCros0].Size;
         }
     }
     else {
         printf ("Found %d files in the TOC of ros1, max is %d !\n" , NbFileTOCros1 , NB_MAX_FILE_ROS);
         return EXIT_FAILURE;
     }
-    printf ("{\"tvrk_prg0\" , \"");
-    MD5SumFileSection (FileToRead, SectionTOC[tvrk_prg0].Offset+0x10, 0x0FE0, MD5result);
+    printf ("{\"trvk_prg0\" , \"");
+    MD5SumFileSection (FileToRead, SectionTOC[trvk_prg0].Offset+0x10, 0x0FE0, MD5result);
     printMD5(MD5result);
     printf ("\"},\n");
     
-    printf ("{\"tvrk_prg1\" , \"");
-    MD5SumFileSection (FileToRead, SectionTOC[tvrk_prg1].Offset+0x10, 0x0FE0, MD5result);
+    printf ("{\"trvk_prg1\" , \"");
+    MD5SumFileSection (FileToRead, SectionTOC[trvk_prg1].Offset+0x10, 0x0FE0, MD5result);
     printMD5(MD5result);
     printf ("\"},\n");
     
-    printf ("{\"tvrk_pkg0\" , \"");
-    MD5SumFileSection (FileToRead, SectionTOC[tvrk_pkg0].Offset+0x10, 0x0FE0, MD5result);
+    printf ("{\"trvk_pkg0\" , \"");
+    MD5SumFileSection (FileToRead, SectionTOC[trvk_pkg0].Offset+0x10, 0x0FE0, MD5result);
     printMD5(MD5result);
     printf ("\"},\n");
     
-    printf ("{\"tvrk_pkg1\" , \"");
-    MD5SumFileSection (FileToRead, SectionTOC[tvrk_pkg1].Offset+0x10, 0x0FE0, MD5result);
+    printf ("{\"trvk_pkg1\" , \"");
+    MD5SumFileSection (FileToRead, SectionTOC[trvk_pkg1].Offset+0x10, 0x0FE0, MD5result);
     printMD5(MD5result);
     printf ("\"},\n");
 
@@ -250,10 +250,10 @@ uint8_t CheckPerFW (FILE *FileToRead, uint32_t *PercentCheck){
     while (SectionRos[Cursor].name!=NULL) {
             printf ("{\"%s\" , \"",SectionRos[Cursor].name);
             
-            MD5SumFileSection ( FileToRead, SectionRos[Cursor+NbFileTOCros1].Offset, SectionRos[Cursor+NbFileTOCros1].Size, MD5result);
+            MD5SumFileSection ( FileToRead, SectionRos[Cursor].Offset, SectionRos[Cursor].Size, MD5result);
 
             // printf ("\"},\n");
-            if (Cursor<=NbFileTOCros0) {
+            if (Cursor<NbFileTOCros0) {
                 printf("%c.%c%c\" , \"", ROS0SDKVersion[0],ROS0SDKVersion[2],ROS0SDKVersion[3]);
                 }
             else {
@@ -268,21 +268,21 @@ uint8_t CheckPerFW (FILE *FileToRead, uint32_t *PercentCheck){
     // The MD5 is done on 0x0FE0, but some blanks where checked before in CheckFilledData()
     // To avoid having a false report on the size checked here we do count on the size of data only
     
-    GetSection(FileToRead, SectionTOC[tvrk_prg0].Offset+0x0E, 0x02, TYPE_HEX, Buffer);
-    tvrk_prg0Size = strtol(Buffer,NULL,16); //.Yes it can be done in one line
-    SizedCheck += tvrk_prg0Size;            // but this way is selfexplaining
+    GetSection(FileToRead, SectionTOC[trvk_prg0].Offset+0x0E, 0x02, TYPE_HEX, Buffer);
+    trvk_prg0Size = strtol(Buffer,NULL,16); //.Yes it can be done in one line
+    SizedCheck += trvk_prg0Size;            // but this way is selfexplaining
     
-    GetSection(FileToRead, SectionTOC[tvrk_prg1].Offset+0x0E, 0x02, TYPE_HEX, Buffer);
-    tvrk_prg1Size = strtol(Buffer,NULL,16);
-    SizedCheck += tvrk_prg1Size; 
+    GetSection(FileToRead, SectionTOC[trvk_prg1].Offset+0x0E, 0x02, TYPE_HEX, Buffer);
+    trvk_prg1Size = strtol(Buffer,NULL,16);
+    SizedCheck += trvk_prg1Size; 
      
-    GetSection(FileToRead, SectionTOC[tvrk_pkg0].Offset+0x0E, 0x02, TYPE_HEX, Buffer);
-    tvrk_pkg0Size = strtol(Buffer,NULL,16);
-    SizedCheck += tvrk_pkg0Size; 
+    GetSection(FileToRead, SectionTOC[trvk_pkg0].Offset+0x0E, 0x02, TYPE_HEX, Buffer);
+    trvk_pkg0Size = strtol(Buffer,NULL,16);
+    SizedCheck += trvk_pkg0Size; 
     
-    GetSection(FileToRead, SectionTOC[tvrk_pkg1].Offset+0x0E, 0x02, TYPE_HEX, Buffer);
-    tvrk_pkg1Size = strtol(Buffer,NULL,16);
-    SizedCheck += tvrk_pkg1Size; 
+    GetSection(FileToRead, SectionTOC[trvk_pkg1].Offset+0x0E, 0x02, TYPE_HEX, Buffer);
+    trvk_pkg1Size = strtol(Buffer,NULL,16);
+    SizedCheck += trvk_pkg1Size; 
     
     *PercentCheck = SizedCheck;
 
@@ -321,7 +321,7 @@ int main(int argc, char *argv[]) {
         //printf("  -G \t\t\t: Check PS3 Generic information\n");
         //printf("  -C \t\t\t: Check and display perconsole information\n");
         //printf("  -f \t\t\t: Check areas filled with '00' or 'FF'\n");
-        printf("  -F \t\t\t:(Default option if none given) display some MD5 on Firmware information (ros0/1 + tvrk)\n");
+        printf("  -F \t\t\t:(Default option if none given) display some MD5 on Firmware information (ros0/1 + trvk)\n");
         //printf("  -N \t\t\t: Check areas containing data in opposition to -F option\n");
         //printf("  -S FolderName \t: Split some NOR section to folder 'FolderName'\n");
         printf("  -M Start Size \t: Run MD5 sum on file from 'Start' for 'Size' long\n");
