@@ -85,7 +85,7 @@ void MD5SumFileSection( FILE *FileToRead, uint32_t Position, uint32_t Size, uint
 void printMD5 (uint8_t MD5result[MD5_DIGEST_LENGTH]) {
     uint8_t Cursor;
     for(Cursor = 0; Cursor < MD5_DIGEST_LENGTH; Cursor++)
-                printf("%02x",MD5result[Cursor]);
+                printf("%02X",MD5result[Cursor]);
 };
 
 void GetSection(FILE *FileToRead, uint32_t Position, uint8_t Size, uint8_t DisplayType, char *section_data) {
@@ -127,6 +127,14 @@ uint8_t CheckPerFW (FILE *FileToRead, uint32_t *PercentCheck){
 
     uint8_t NbFileTOCros0;
     uint8_t NbFileTOCros1;
+    
+    uint32_t ros0Size;
+    //uint32_t ros0FilledSize;
+    uint32_t ros1Size;
+    //uint32_t ros1FilledSize;
+    uint32_t LastFileTOC;
+    uint32_t LastFileOffset;
+    uint32_t LastFileSize;
     
     uint32_t trvk_prg0Size;
     uint32_t trvk_prg1Size;
@@ -205,28 +213,8 @@ uint8_t CheckPerFW (FILE *FileToRead, uint32_t *PercentCheck){
         printf ("Found %d files in the TOC of ros1, max is %d !\n" , NbFileTOCros1 , NB_MAX_FILE_ROS);
         return EXIT_FAILURE;
     }
-    printf ("{\"trvk_prg0\" , \"");
-    MD5SumFileSection (FileToRead, SectionTOC[trvk_prg0].Offset+0x10, 0x0FE0, MD5result);
-    printMD5(MD5result);
-    printf ("\"},\n");
     
-    printf ("{\"trvk_prg1\" , \"");
-    MD5SumFileSection (FileToRead, SectionTOC[trvk_prg1].Offset+0x10, 0x0FE0, MD5result);
-    printMD5(MD5result);
-    printf ("\"},\n");
-    
-    printf ("{\"trvk_pkg0\" , \"");
-    MD5SumFileSection (FileToRead, SectionTOC[trvk_pkg0].Offset+0x10, 0x0FE0, MD5result);
-    printMD5(MD5result);
-    printf ("\"},\n");
-    
-    printf ("{\"trvk_pkg1\" , \"");
-    MD5SumFileSection (FileToRead, SectionTOC[trvk_pkg1].Offset+0x10, 0x0FE0, MD5result);
-    printMD5(MD5result);
-    printf ("\"},\n");
-
     Cursor = 0;
-    
     while (SectionRos[Cursor].name!=NULL) {
         if (strcmp(SectionRos[Cursor].name, "sdk_version")==0) {
             GetSection(FileToRead, SectionRos[Cursor].Offset, SectionRos[Cursor].Size, TYPE_ASCII, Buffer);
@@ -241,12 +229,55 @@ uint8_t CheckPerFW (FILE *FileToRead, uint32_t *PercentCheck){
                 ROS1SDKVersion[3]=Buffer[2];
             }
             //printf (" SDK VERSION at '0x%08X' is : '%7s'\n",SectionRos[Cursor].Offset, Buffer);
-            printf ("%s\n",DisplaySection);
+            //printf ("%s\n",DisplaySection);
         }
         Cursor++;
     }
-    Cursor = 0;
+    //at ros0 offset + 0x14: nb of files, (nb of files) * 0x30 = size of TOC
+    GetSection(FileToRead, SectionTOC[ros0].Offset+0x14, 0x04, TYPE_HEX, Buffer);
+    LastFileTOC = (strtol(Buffer,NULL,16))*0x30-0x10;
+ 
+    //last file position found at (ros0 offset) + (size of TOC) - 0x10
+    GetSection(FileToRead, SectionTOC[ros0].Offset+LastFileTOC, 0x08, TYPE_HEX, Buffer);
+    LastFileOffset = strtol(Buffer,NULL,16);
+ 
+    //+ 0x8 for its size.
+    GetSection(FileToRead, SectionTOC[ros0].Offset+LastFileTOC+0x08, 0x08, TYPE_HEX, Buffer);
+    LastFileSize = strtol(Buffer,NULL,16);
+ 
+    ros0Size = 0x10 + LastFileOffset + LastFileSize;
+    //From end of last file pos + size to next section - 0x10 : full of 00
+    //last 0x10 bytes are full of FF !!??
+
+    //at ros1 offset + 0x14: nb of files, (nb of files) * 0x30 = size of TOC
+    GetSection(FileToRead, SectionTOC[ros1].Offset+0x14, 0x04, TYPE_HEX, Buffer);
+    LastFileTOC = (strtol(Buffer,NULL,16))*0x30-0x10;
+    //last file position found at (ros1 offset) + (size of TOC) - 0x10
+ 
+    GetSection(FileToRead, SectionTOC[ros1].Offset+LastFileTOC, 0x08, TYPE_HEX, Buffer);
+    LastFileOffset = strtol(Buffer,NULL,16);
+ 
+    //+ 0x8 for its size.
+    GetSection(FileToRead, SectionTOC[ros1].Offset+LastFileTOC+0x08, 0x08, TYPE_HEX, Buffer);
+    LastFileSize = strtol(Buffer,NULL,16);
+ 
+    ros1Size = 0x10 + LastFileOffset + LastFileSize;
     
+    printf ("{\"ros0\" , \"");
+    MD5SumFileSection (FileToRead, SectionTOC[ros0].Offset+0x10, ros0Size, MD5result);
+    printf("%c.%c%c\" , \"", ROS0SDKVersion[0],ROS0SDKVersion[2],ROS0SDKVersion[3]);
+    printMD5(MD5result);
+    printf ("\"}, // ros0Size:'0x%08X'\n",ros0Size);
+    
+    printf ("{\"ros1\" , \"");
+    MD5SumFileSection (FileToRead, SectionTOC[ros1].Offset+0x10, ros1Size, MD5result);
+    printf("%c.%c%c\" , \"", ROS1SDKVersion[0],ROS1SDKVersion[2],ROS1SDKVersion[3]);
+    printMD5(MD5result);
+    printf ("\"}, // ros1Size:'0x%08X'\n",ros1Size);
+    
+    printf("\n");
+    
+    Cursor = 0;
     while (SectionRos[Cursor].name!=NULL) {
             printf ("{\"%s\" , \"",SectionRos[Cursor].name);
             
@@ -265,6 +296,59 @@ uint8_t CheckPerFW (FILE *FileToRead, uint32_t *PercentCheck){
 
         Cursor++;
     }
+    printf ("\n");
+    printf ("{\"trvk_prg0\" , \"");
+    MD5SumFileSection (FileToRead, SectionTOC[trvk_prg0].Offset+0x10, 0x0FE0, MD5result);
+    printMD5(MD5result);
+    printf ("\"},\n");
+    
+    GetSection(FileToRead, SectionTOC[trvk_prg0].Offset+0x0E, 0x02, TYPE_HEX, Buffer);
+    trvk_prg0Size = strtol(Buffer,NULL,16);
+    
+    printf ("2nd MD5: \"");
+    MD5SumFileSection (FileToRead, SectionTOC[trvk_prg0].Offset+0x10, trvk_prg0Size, MD5result);
+    printMD5(MD5result);
+    printf("\"\n");
+    
+    printf ("{\"trvk_prg1\" , \"");
+    MD5SumFileSection (FileToRead, SectionTOC[trvk_prg1].Offset+0x10, 0x0FE0, MD5result);
+    printMD5(MD5result);
+    printf ("\"},\n");
+    
+    GetSection(FileToRead, SectionTOC[trvk_prg1].Offset+0x0E, 0x02, TYPE_HEX, Buffer);
+    trvk_prg1Size = strtol(Buffer,NULL,16);
+    
+    printf ("2nd MD5: \"");
+    MD5SumFileSection (FileToRead, SectionTOC[trvk_prg1].Offset+0x10, trvk_prg1Size, MD5result);
+    printMD5(MD5result);
+    printf("\"\n");
+    
+    printf ("{\"trvk_pkg0\" , \"");
+    MD5SumFileSection (FileToRead, SectionTOC[trvk_pkg0].Offset+0x10, 0x0FE0, MD5result);
+    printMD5(MD5result);
+    printf ("\"},\n");
+    
+    GetSection(FileToRead, SectionTOC[trvk_pkg0].Offset+0x0E, 0x02, TYPE_HEX, Buffer);
+    trvk_pkg0Size = strtol(Buffer,NULL,16);
+    
+    printf ("2nd MD5: \"");
+    MD5SumFileSection (FileToRead, SectionTOC[trvk_pkg0].Offset+0x10, trvk_pkg0Size, MD5result);
+    printMD5(MD5result);
+    printf("\"\n");
+    
+    printf ("{\"trvk_pkg1\" , \"");
+    MD5SumFileSection (FileToRead, SectionTOC[trvk_pkg1].Offset+0x10, 0x0FE0, MD5result);
+    printMD5(MD5result);
+    printf ("\"},\n");
+    
+    GetSection(FileToRead, SectionTOC[trvk_pkg1].Offset+0x0E, 0x02, TYPE_HEX, Buffer);
+    trvk_pkg1Size = strtol(Buffer,NULL,16);
+    
+    printf ("2nd MD5: \"");
+    MD5SumFileSection (FileToRead, SectionTOC[trvk_pkg1].Offset+0x10, trvk_pkg1Size, MD5result);
+    printMD5(MD5result);
+    printf("\"\n");
+    
     // The MD5 is done on 0x0FE0, but some blanks where checked before in CheckFilledData()
     // To avoid having a false report on the size checked here we do count on the size of data only
     
